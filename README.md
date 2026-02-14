@@ -3,6 +3,6 @@
 
 Short description of what this project does.
 
-## Installation
-```bash
-npm install
+## Installation guide
+
+
