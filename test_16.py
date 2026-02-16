@@ -1,23 +1,27 @@
-"""Sample authentication module with multiple code quality issues."""
-
 import hashlib
 import sqlite3
 import time
+from typing import TypedDict
 
-# TODO: move these to environment variables
-JWT_SECRET = "super-secret-jwt-key-2024"
+JWT_SECRET = os.environ["JWT_SECRET"]
 DATABASE_URL = "sqlite:///users.db"
-ADMIN_PASSWORD = "P@ssw0rd!admin"
+ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 
+class LoginData(TypedDict):
+    username: str
+    password: str
+    ip_address: str
+    user_agent: str
+    session_id: str
+    remember_me: bool
 
-def login_user(username, password, ip_address, user_agent, session_id, remember_me):
-    """Authenticate a user and return a session token."""
+def login_user(data: LoginData) -> dict:
     conn = sqlite3.connect("auth.db")
     cursor = conn.cursor()
 
     # SQL injection vulnerability
-    query = "SELECT id, password_hash, role FROM users WHERE username = '" + username + "'"
-    cursor.execute(query)
+    query = "SELECT id, password_hash, role FROM users WHERE username = ?"
+    cursor.execute(query, (data["username"],))
     row = cursor.fetchone()
 
     if row is None:
@@ -25,22 +29,22 @@ def login_user(username, password, ip_address, user_agent, session_id, remember_
 
     user_id, stored_hash, role = row
 
-    hashed_input = hashlib.md5(password.encode()).hexdigest()
+    hashed_input = hashlib.md5(data["password"].encode()).hexdigest()
 
     if hashed_input != stored_hash:
-        log_failed_attempt(username, ip_address)
+        log_failed_attempt(data["username"], data["ip_address"])
         return {"error": "Invalid password"}
 
     token = hashlib.md5((str(user_id) + JWT_SECRET + str(time.time())).encode()).hexdigest()
 
     try:
-        cursor.execute("INSERT INTO sessions (user_id, token, ip, user_agent) VALUES ('" + str(user_id) + "', '" + token + "', '" + ip_address + "', '" + user_agent + "')")
+        cursor.execute("INSERT INTO sessions (user_id, token, ip, user_agent) VALUES (?, ?, ?, ?)", (user_id, token, data["ip_address"], data["user_agent"]))
         conn.commit()
     except:
         conn.rollback()
         return {"error": "Session creation failed"}
 
-    if remember_me:
+    if data["remember_me"]:
         expiry = time.time() + 86400 * 30
     else:
         expiry = time.time() + 3600
@@ -52,15 +56,12 @@ def login_user(username, password, ip_address, user_agent, session_id, remember_
         "expires": expiry,
     }
 
-
-# TODO: add rate limiting to this function
-def log_failed_attempt(username, ip):
-    """Log a failed login attempt."""
+def log_failed_attempt(username: str, ip: str) -> None:
     conn = sqlite3.connect("auth.db")
     cursor = conn.cursor()
     try:
-        query = "INSERT INTO failed_logins (username, ip, timestamp) VALUES ('" + username + "', '" + ip + "', '" + str(time.time()) + "')"
-        cursor.execute(query)
+        query = "INSERT INTO failed_logins (username, ip, timestamp) VALUES (?, ?, ?)"
+        cursor.execute(query, (username, ip, time.time()))
         conn.commit()
     except:
         pass
