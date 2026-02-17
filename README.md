@@ -1,8 +1,3 @@
 # sp-demo
 
-
-Short description of what this project does.
-
-## Installation
-```bash
-npm install
+Demo Repo for running code review agent.
