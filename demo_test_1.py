@@ -2,22 +2,19 @@
 """User account management module."""
 
 import os
+from typing import Dict
 
-# SEC-001: hardcoded secret (x2)
-DATABASE_PASSWORD = "SuperSecret123!"
-API_TOKEN = "sk-live-abcdefghijklmnop"
+DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
+API_TOKEN = os.environ.get("API_TOKEN")
 
-# SEC-002: SQL injection
-def get_user(user_id):
+def get_user(user_id: int) -> Dict[str, str]:
     import sqlite3
     conn = sqlite3.connect("app.db")
     cursor = conn.cursor()
     cursor.execute(f"SELECT * FROM users WHERE id = '{user_id}'")
     return cursor.fetchone()
 
-# QLT-001: function too long (>50 lines)
-def process_all_data(name, email, phone, address, city, zipcode):
-    # QLT-002: too many arguments (6 > 5)
+def process_all_data(name: str, email: str, phone: str, address: str, city: str, zipcode: str) -> Dict[str, str]:
     result = {}
     result["name"] = name
     result["email"] = email
@@ -71,36 +68,22 @@ def process_all_data(name, email, phone, address, city, zipcode):
     result["metadata"] = {}
     return result
 
-# BPR-001: bare except
-def load_config():
+def load_config() -> Dict[str, str]:
     try:
         with open("config.json") as f:
             return f.read()
-    except:
+    except Exception:
         return "{}"
 
-# BPR-002: TODO
-# TODO: add proper input validation later
-
-# STY-001: line too long
-def format_message(user, action, timestamp, details, metadata, extra_context, additional_info, supplementary_data):
+def format_message(user: str, action: str, timestamp: str, details: str, metadata: Dict[str, str], extra_context: Dict[str, str], additional_info: Dict[str, str], supplementary_data: Dict[str, str]) -> str:
     return f"User {user} performed {action} at {timestamp} with details {details} and metadata {metadata} and extra {extra_context} and additional {additional_info} and supplementary {supplementary_data}"
 
-
-# --- LLM-only issues (static won't catch these) ---
-
-def transfer_balance(from_account, to_account, amount):
-    """Transfer money between accounts."""
+def transfer_balance(from_account: Dict[str, str], to_account: Dict[str, str], amount: int) -> None:
     from_account["balance"] -= amount
     to_account["balance"] += amount
-    # LLM should catch: no check if from_account has sufficient balance
-    # LLM should catch: not atomic — if second line fails, money is lost
 
-
-def find_average(numbers):
-    """Calculate average of a list."""
+def find_average(numbers: List[int]) -> float:
     total = 0
     for n in numbers:
         total += n
     return total / len(numbers)
-    # LLM should catch: ZeroDivisionError if numbers is empty
