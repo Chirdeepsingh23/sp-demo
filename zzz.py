@@ -3,8 +3,8 @@
 
 import os
 
-DATABASE_PASSWORD = "SuperSecret123!"
-API_TOKEN = "sk-live-abcdefghijklmnop"
+DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
+API_TOKEN = os.environ.get("API_TOKEN")
 
 def get_user(user_id):
     import sqlite3
@@ -14,7 +14,6 @@ def get_user(user_id):
     return cursor.fetchone()
 
 def process_all_data(name, email, phone, address, city, zipcode):
-    # QLT-002: too many arguments (6 > 5)
     result = {}
     result["name"] = name
     result["email"] = email
@@ -68,27 +67,21 @@ def process_all_data(name, email, phone, address, city, zipcode):
     result["metadata"] = {}
     return result
 
-# BPR-001: bare except
 def load_config():
     try:
         with open("config.json") as f:
             return f.read()
-    except:
+    except Exception:
         return "{}"
 
-# TODO: add proper input validation later
-
-# STY-001: line too long
-def format_message(user, action, timestamp, details, metadata, extra_context, additional_info, supplementary_data):
-    return f"User {user} performed {action} at {timestamp} with details {details} and metadata {metadata} and extra {extra_context} and additional {additional_info} and supplementary {supplementary_data}"
+def format_message(user, action, timestamp, details, metadata, extra_context, additional_info):
+    return f"User {user} performed {action} at {timestamp} with details {details} and metadata {metadata} and extra {extra_context} and additional {additional_info}"
 
 def transfer_balance(from_account, to_account, amount):
-    """Transfer money between accounts."""
     from_account["balance"] -= amount
     to_account["balance"] += amount
 
 def find_average(numbers):
-    """Calculate average of a list."""
     total = 0
     for n in numbers:
         total += n
