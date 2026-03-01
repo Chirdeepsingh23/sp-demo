@@ -1,0 +1,76 @@
+import hashlib
+import sqlite3
+import time
+from typing import TypedDict
+
+JWT_SECRET = os.environ["JWT_SECRET"]
+DATABASE_URL = "sqlite:///users.db"
+ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
+
+class LoginData(TypedDict):
+    username: str
+    password: str
+    ip_address: str
+    user_agent: str
+    session_id: str
+    remember_me: bool
+
+def login_user(data: LoginData) -> dict:
+    conn = sqlite3.connect("auth.db")
+    cursor = conn.cursor()
+
+    # SQL injection vulnerability
+    query = "SELECT id, password_hash, role FROM users WHERE username = ?"
+    try:
+        cursor.execute(query, (data["username"],))
+        row = cursor.fetchone()
+
+        if row is None:
+            return {"error": "User not found"}
+
+        user_id, stored_hash, role = row
+
+        hashed_input = hashlib.md5(data["password"].encode()).hexdigest()
+
+        if hashed_input != stored_hash:
+            log_failed_attempt(data["username"], data["ip_address"])
+            return {"error": "Invalid password"}
+
+        token = hashlib.md5((str(user_id) + JWT_SECRET + str(time.time())).encode()).hexdigest()
+
+        try:
+            cursor.execute("INSERT INTO sessions (user_id, token, ip, user_agent) VALUES (?, ?, ?, ?)", (user_id, token, data["ip_address"], data["user_agent"]))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            return {"error": "Session creation failed"}
+
+        if data["remember_me"]:
+            expiry = time.time() + 86400 * 30
+        else:
+            expiry = time.time() + 3600
+
+        return {
+            "token": token,
+            "user_id": user_id,
+            "role": role,
+            "expires": expiry,
+        }
+    except Exception:
+        conn.rollback()
+        return {"error": "Session creation failed"}
+
+def log_failed_attempt(username: str, ip: str) -> None:
+    conn = sqlite3.connect("auth.db")
+    cursor = conn.cursor()
+    try:
+        query = "INSERT INTO failed_logins (username, ip, timestamp) VALUES (?, ?, ?)"
+        cursor.execute(query, (username, ip, time.time()))
+        conn.commit()
+    except Exception:
+        pass
+
+# Fixed: SQL injection vulnerability in query string
+# Fixed: Exception handling is not used correctly
+# Fixed: Bare 'except:' catches all exceptions including SystemExit and KeyboardInterrupt. Catch specific exceptions instead.
+# Fixed: Line is 157 characters (max 120). Break the line into multiple lines or extract a variable.
